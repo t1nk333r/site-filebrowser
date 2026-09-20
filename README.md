@@ -99,6 +99,12 @@ cp ~/photo.png html/images/
 # Indexes regenerate automatically!
 ```
 
+> **Content rules.** Symlinks are followed only inside the content directory: a
+> link pointing outside it is left out of the listing rather than shown as a dead
+> entry, and nginx refuses to follow a symlink owned by another user. An
+> `index.html` you write by hand is never replaced — the generator stamps its own
+> listings and only rewrites those.
+
 ### Creating HTML Pages
 
 #### Using the Scripts
@@ -276,7 +282,7 @@ docker-compose pull
 docker-compose up -d
 ```
 
-See [CI/CD Documentation](README-CICD.md) for complete setup instructions.
+See [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) for the pipeline itself: pull requests only build the image, pushes to `main`/`master` also publish it.
 
 ### Production Deployment
 
@@ -480,8 +486,9 @@ curl http://localhost:8800
 # Inside container
 docker-compose exec file-browser python3 /app/generator.py
 
-# Outside container (requires Python 3)
-python3 generator.py
+# Outside container (requires Python 3); the optional argument points it at a
+# different content root than /var/www/html
+python3 generator.py html
 ```
 
 ## 🧪 Testing
@@ -545,6 +552,19 @@ lsof -i :8800
 vim compose.yml  # Edit ports section
 ```
 
+### Everything returns 403?
+
+The container serves as the unprivileged `nginx` user (uid 101) and deliberately
+never re-owns the mounted content directory, so that directory has to be readable
+and traversable by that user:
+
+```bash
+chmod -R a+rX html
+```
+
+Generated `index.html` files are given the ownership of the directory they are
+written into, so they stay yours to delete on the host.
+
 ### Container won't start?
 
 ```bash
@@ -564,7 +584,7 @@ docker-compose up -d --build
 ### Built-in Protections
 
 ✅ **Path Traversal Prevention**
-- Nginx blocks `..` sequences in URLs
+- Nginx normalises request paths, so `..` cannot escape the content directory
 - Generator validates all paths against allowed root
 - Container isolation prevents filesystem escape
 
@@ -576,7 +596,7 @@ docker-compose up -d --build
 ✅ **Security Headers**
 - `X-Frame-Options: SAMEORIGIN` (prevents clickjacking)
 - `X-Content-Type-Options: nosniff` (prevents MIME sniffing)
-- `X-XSS-Protection: 1; mode=block` (XSS protection)
+- No server version is advertised (`server_tokens off`)
 
 ✅ **Read-Only Operation**
 - No file upload capability
@@ -713,7 +733,7 @@ This project is open source and available under the MIT License.
 
 - **GitHub:** https://github.com/d7eeem/site-filebrowser
 - **Container Registry:** https://ghcr.io/d7eeem/site-filebrowser
-- **Documentation:** [README-CICD.md](README-CICD.md)
+- **Pipeline:** [.github/workflows/docker-publish.yml](.github/workflows/docker-publish.yml)
 
 ---
 

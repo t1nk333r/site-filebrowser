@@ -3,7 +3,6 @@ FROM nginx:alpine
 # Install Python and inotify-tools
 RUN apk add --no-cache \
     python3 \
-    py3-pip \
     inotify-tools \
     bash
 
@@ -25,11 +24,14 @@ RUN mkdir -p /var/www/html && \
 # Expose port
 EXPOSE 80
 
-# Create entrypoint script with proper permissions
+# Create entrypoint script with proper permissions.
+# /var/www/html is deliberately left alone: it is usually a bind mount from the
+# host, where a recursive chown would take the user's own content directory away
+# from them. generator.py gives each index.html the ownership of its directory
+# instead. nginx is exec'd so that it is PID 1 and receives SIGTERM on stop.
 RUN echo '#!/bin/bash' > /entrypoint.sh && \
-    echo 'chown -R nginx:nginx /var/www/html' >> /entrypoint.sh && \
     echo '/app/watcher.sh &' >> /entrypoint.sh && \
-    echo 'nginx -g "daemon off;"' >> /entrypoint.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /entrypoint.sh && \
     chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
