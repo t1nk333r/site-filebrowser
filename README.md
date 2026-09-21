@@ -317,7 +317,7 @@ docker-compose pull
 docker-compose up -d
 ```
 
-See [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) for the pipeline itself: pull requests only build the image, pushes to `main`/`master` also publish it.
+See [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml) for the pipeline itself: every push and pull request runs the test suite and a container smoke test, then pull requests build the image while pushes to `main`/`master` also publish it.
 
 ### Production Deployment
 
@@ -595,6 +595,36 @@ python3 generator.py html
 
 ## 🧪 Testing
 
+### The automated suite
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+playwright install chromium        # only needed for the `browser` tests
+
+pytest                             # everything
+pytest -m "not browser"            # skip the browser suite
+```
+
+| Suite | What it pins down |
+| --- | --- |
+| `tests/test_generator.py` | link encoding for awkward names (`#`, `?`, `%`, quotes, angle brackets, non-ASCII), exclusions, hand-written `index.html` files, symlink policy, and that a symlinked index is replaced rather than written through |
+| `tests/test_theme.py` | every page-producing artefact carries an identical theme script, plus the browser behaviour: toggling both ways, the theme surviving navigation, `#dark` deep links |
+| `tests/test_scaffolders.py` | `new-page.sh` and `new-page.py` agree byte for byte and refuse overwrites, traversal and symlinked paths |
+| `tests/test_watcher.py` | a change made *while the generator runs* is not lost, the watcher does not wake itself, and a deleted listing comes back |
+| `tests/test_nginx_config.py` | headers survive nginx's `add_header` inheritance rules, cache TTLs, and the backup rule matches the generator's exclusions |
+
+`tests/smoke.sh` boots the built image and checks the runtime contract:
+
+```bash
+docker build -t site-filebrowser:ci .
+bash tests/smoke.sh site-filebrowser:ci
+```
+
+It serves a scratch tree and asserts that the listing appears, a hand-written index survives, backup files are denied, a symlink out of the tree is neither listed nor served, the security headers are present on assets while the version is not advertised, a file added on the host is indexed without a restart, and generated files end up owned by the host user.
+
+### By hand
+
 ```bash
 # Test file creation
 echo "test" > html/test.txt
@@ -804,9 +834,47 @@ docker-compose up -d --build
 - [ ] Use strong file permissions on host
 - [ ] Consider authentication (Authelia, OAuth2 Proxy, etc.)
 
+## 🗺️ Polish task list
+
+Follow-ups that keep the project small while making it nicer to live with, roughly in the order they pay off. Nothing here is a known bug — each item is a deliberate "later".
+
+### Listing experience
+- [ ] Client-side filter box for the current directory
+- [ ] Sort by name, size or date
+- [ ] Breadcrumb path instead of the lone `../`
+- [ ] Total size for the directory in the footer
+- [ ] Lazy thumbnails for image directories
+- [ ] Emit `index.json` and render very large directories client-side (a 30 000-entry listing is a 3.4 MB page today)
+
+### Theme
+- [ ] Follow `prefers-color-scheme` on the first visit, with a "system" state
+- [ ] `<meta name="color-scheme" content="light dark">` so scrollbars and form controls follow
+- [ ] Inline SVG favicon, which silences the `/favicon.ico` 404s
+- [ ] `aria-pressed` and a proper accessible name on the toggle, `scope` on the listing table
+
+### Operations
+- [ ] `/healthz` endpoint plus a Docker `HEALTHCHECK`
+- [ ] Periodic regeneration as a safety net behind the watcher
+- [ ] Multi-root: one virtual top level over several mounts
+- [ ] A "generate once, no watcher" mode for read-only content mounts
+- [ ] Read exclusions from a file or the environment instead of editing `EXCLUDE_PATTERNS`
+
+### Distribution
+- [ ] Multi-arch images (`linux/amd64,linux/arm64`)
+- [ ] Semver tags and releases instead of `latest` only
+- [ ] `provenance` and `sbom` attestations on the published image
+
+### Content
+- [ ] Show a page's `<title>` instead of the filename for `.html` entries
+- [ ] RSS/Atom feed for `posts/`
+- [ ] Optional basic auth via environment variables
+- [ ] Markdown rendering for `posts/*.md`, which needs a deliberate dependency decision
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit issues or pull requests.
+
+Run the suite before opening a pull request (`pytest`, see [Testing](#-testing)) — CI runs the same tests plus a container smoke test before anything is published.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)

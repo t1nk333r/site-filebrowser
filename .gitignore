@@ -16,6 +16,12 @@ Thumbs.db
 .env
 .env.local
 
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+
 # HTML content (optional - uncomment if you don't want to commit content)
 # html/*
 # !html/.gitkeep

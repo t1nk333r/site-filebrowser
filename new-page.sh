@@ -29,8 +29,15 @@ ESCAPED_TITLE=${ESCAPED_TITLE//>/&gt;}
 ESCAPED_TITLE=${ESCAPED_TITLE//\"/&quot;}
 ESCAPED_TITLE=${ESCAPED_TITLE//\'/&#x27;}
 
-# Refuse anything that leaves html/: '..' elements outright, and no component may
-# be a symlink, which mkdir and the redirect would otherwise follow
+# Refuse anything that leaves html/: absolute paths, '..' elements outright, and
+# no component may be a symlink, which mkdir and the redirect would otherwise follow
+case "$2" in
+    /*)
+        echo "ERROR: refusing absolute path: $2" >&2
+        exit 1
+        ;;
+esac
+
 case "/$FILEPATH/" in
     */../*)
         echo "ERROR: refusing path containing a '..' element: $FILEPATH" >&2

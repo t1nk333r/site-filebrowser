@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Test and Publish
 
 on:
   push:
@@ -10,7 +10,57 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  test:
+    name: Test suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools the suite drives
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends inotify-tools shellcheck
+
+      - name: Create a virtual environment
+        run: python3 -m venv .venv
+
+      - name: Install test dependencies
+        run: |
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements-dev.txt
+
+      - name: Install Chromium for the browser tests
+        run: .venv/bin/playwright install --with-deps chromium
+
+      - name: Lint
+        run: |
+          shellcheck watcher.sh new-page.sh tests/smoke.sh
+          python3 -m py_compile generator.py new-page.py
+
+      - name: Run the suite
+        env:
+          REQUIRE_BROWSER_TESTS: "1"
+        run: .venv/bin/pytest -q
+
+  smoke:
+    name: Boot the image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t site-filebrowser:ci .
+
+      - name: Serve a tree and check the runtime contract
+        run: bash tests/smoke.sh site-filebrowser:ci
+
   build:
+    name: Publish to ghcr.io
+    needs: [ test, smoke ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
