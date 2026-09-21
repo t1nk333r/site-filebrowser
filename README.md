@@ -109,8 +109,8 @@ image and checks the runtime contract. CI runs both before publishing anything.
 
 Images are published to `ghcr.io/t1nk333r/site-filebrowser`:
 
-- `latest` - the default branch
-- `X.Y.Z` and `X.Y` - from a `vX.Y.Z` git tag, which is what you should pin
+- `latest`, `X.Y.Z` and `X.Y` - from a `vX.Y.Z` git tag, which is what you should pin
+- `main` - the tip of the default branch
 - `sha-<short>` - every build
 
 `VERSION` holds the current release, and published images carry it in their
