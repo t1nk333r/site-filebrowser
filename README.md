@@ -44,8 +44,10 @@ docker run -d -p 8800:80 -v /path/to/content:/var/www/html \
 - `watcher.sh` runs the generator on every change. It watches in monitor mode, so a
   change landing while a generation is running is queued rather than dropped, and it
   ignores its own output and hidden paths so it cannot wake itself.
-- `nginx.conf` serves the result with the security headers, no directory listing, no
-  symlink following across owners, and the version hidden.
+- `nginx.conf` serves the result with a strict Content-Security-Policy and the usual
+  hardening headers, no directory listing, no symlink following across owners, and
+  the version hidden. `/healthz` answers `ok` for probes, and the image carries a
+  `HEALTHCHECK` that polls it.
 
 Content rules worth knowing:
 
@@ -128,6 +130,15 @@ outside `html/`, and put it behind HTTPS or a proxy with auth (or bind it to
 127.0.0.1) if it is reachable from anywhere untrusted. nginx runs unprivileged, and
 generated files keep the host user's ownership.
 
+Every response carries `Content-Security-Policy: default-src 'self'`, with
+`object-src`, `base-uri`, `form-action` and `frame-ancestors` set to `none`, plus
+`Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` and a `Permissions-Policy`
+that switches off the sensitive browser features. `script-src` and `style-src` keep
+`'unsafe-inline'`, because the theme toggle, its `onclick` handler and the listing
+styles are inline, while `eval` stays blocked and everything external falls back to
+`'self'`. A page that needs an external font, image or frame has to name that source
+in the policy in `nginx.conf`.
+
 ### Everything returns 403
 
 The content directory has to be readable and traversable by the container's nginx
@@ -153,11 +164,14 @@ here is a known bug.
 - [ ] `aria-pressed` and a proper accessible name on the toggle, `scope` on the listing table
 
 ### Operations
-- [ ] `/healthz` endpoint plus a Docker `HEALTHCHECK`
 - [ ] Periodic regeneration as a safety net behind the watcher
 - [ ] Multi-root: one virtual top level over several mounts
 - [ ] A "generate once, no watcher" mode for read-only content mounts
 - [ ] Read exclusions from a file or the environment instead of editing `EXCLUDE_PATTERNS`
+
+### Security
+- [ ] Tighten `script-src` with a hash for the inline theme script, which needs the `onclick` handler turned into a listener first
+- [ ] Note the proxy-side additions in the docs: HSTS, and the CSP entries an embedded video or external image would need
 
 ### Distribution
 - [ ] Multi-arch images (`linux/amd64,linux/arm64`)

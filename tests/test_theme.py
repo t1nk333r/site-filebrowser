@@ -4,48 +4,25 @@ import os
 
 import pytest
 
-from conftest import (REPO, canonical_script, generate, normalise_script,
-                      page_from_scaffolder, script_blocks, serve, snippet_page)
+from conftest import REPO, canonical_script, generate, normalise_script, script_blocks
 
 
-def artefacts(tmp_path):
-    """Every artefact that carries the theme script.
-
-    The README deliberately points at html/template.html instead of inlining the
-    script, so it is not part of the parity set.
-    """
-    root = tmp_path / 'html'
-    root.mkdir()
-    (root / 'page.txt').write_text('x')
-    generate(root)
-    _, sh_root = page_from_scaffolder(tmp_path, 'T', 'page.html', shell=True)
-    _, py_root = page_from_scaffolder(tmp_path, 'T', 'page.html', shell=False)
-
-    return {
-        'html/template.html': (REPO / 'html' / 'template.html').read_text(encoding='utf-8'),
-        'generated listing': (root / 'index.html').read_text(encoding='utf-8'),
-        'new-page.sh': (sh_root / 'html/page.html').read_text(encoding='utf-8'),
-        'new-page.py': (py_root / 'html/page.html').read_text(encoding='utf-8'),
-        'html.json': snippet_page(REPO / 'html.json'),
-    }
-
-
-def test_every_copy_of_the_theme_script_is_identical(tmp_path):
+def test_every_copy_of_the_theme_script_is_identical(page_artefacts):
     canonical = canonical_script()
-    for name, text in artefacts(tmp_path).items():
+    for name, text in page_artefacts.items():
         blocks = script_blocks(text)
         assert blocks, f'{name} carries no inline script'
         for block in blocks:
             assert normalise_script(block) == canonical, f'{name} has drifted'
 
 
-def test_script_runs_from_the_head_and_scopes_dark_to_the_root(tmp_path):
+def test_script_runs_from_the_head_and_scopes_dark_to_the_root(page_artefacts):
     canonical = canonical_script()
     assert 'document.documentElement.classList' in canonical
     assert 'document.body.classList' not in canonical
     assert 'localStorage' in canonical
 
-    for name, text in artefacts(tmp_path).items():
+    for name, text in page_artefacts.items():
         assert text.index('<script>') < text.index('</head>'), f'{name}: script is not in the head'
 
 

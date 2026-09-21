@@ -227,3 +227,26 @@ def site(tmp_path):
     generate(root)
     with serve(root) as base_url:
         yield base_url
+
+
+@pytest.fixture
+def page_artefacts(tmp_path):
+    """Every artefact that emits a page, keyed by where it comes from.
+
+    The README deliberately points at html/template.html instead of inlining the
+    page markup, so it is not part of this set.
+    """
+    root = tmp_path / 'html'
+    root.mkdir()
+    (root / 'page.txt').write_text('x')
+    generate(root)
+    _, sh_root = page_from_scaffolder(tmp_path, 'T', 'page.html', shell=True)
+    _, py_root = page_from_scaffolder(tmp_path, 'T', 'page.html', shell=False)
+
+    return {
+        'html/template.html': (REPO / 'html' / 'template.html').read_text(encoding='utf-8'),
+        'generated listing': (root / 'index.html').read_text(encoding='utf-8'),
+        'new-page.sh': (sh_root / 'html/page.html').read_text(encoding='utf-8'),
+        'new-page.py': (py_root / 'html/page.html').read_text(encoding='utf-8'),
+        'html.json': snippet_page(REPO / 'html.json'),
+    }

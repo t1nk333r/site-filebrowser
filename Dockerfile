@@ -24,6 +24,10 @@ RUN mkdir -p /var/www/html && \
 # Expose port
 EXPOSE 80
 
+# Liveness probe: the same endpoint Docker and uptime monitors should poll
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
+
 # Create entrypoint script with proper permissions.
 # /var/www/html is deliberately left alone: it is usually a bind mount from the
 # host, where a recursive chown would take the user's own content directory away

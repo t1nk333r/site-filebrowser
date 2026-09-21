@@ -26,13 +26,70 @@ def block_matching(fragment):
     return next(body for header, body in location_blocks() if fragment in header)
 
 
+SECURITY_HEADERS = ('X-Frame-Options', 'X-Content-Type-Options', 'Referrer-Policy',
+                    'Permissions-Policy', 'Content-Security-Policy')
+
+
+def header_names(text):
+    return set(re.findall(r'add_header\s+(\S+)\s', text))
+
+
+def csp_value():
+    match = re.search(r'add_header\s+Content-Security-Policy\s+"([^"]+)"', CONFIG)
+    assert match, 'nginx.conf sends no Content-Security-Policy'
+    return match.group(1)
+
+
+def csp_directives():
+    directives = {}
+    for part in csp_value().split(';'):
+        part = part.strip()
+        if part:
+            name, _, rest = part.partition(' ')
+            directives[name] = rest
+    return directives
+
+
 def test_security_headers_survive_add_header_inheritance():
     # nginx discards every inherited add_header as soon as a location defines
-    # one, so a location that sets a header has to repeat the security set
+    # one, so such a location has to repeat the whole set
+    configured = header_names(CONFIG)
+    assert set(SECURITY_HEADERS) <= configured, sorted(set(SECURITY_HEADERS) - configured)
+
     for header, body in location_blocks():
-        if 'add_header' in body:
-            assert 'X-Frame-Options' in body, header
-            assert 'X-Content-Type-Options' in body, header
+        present = header_names(body)
+        if present:
+            missing = configured - present
+            assert not missing, f'location {header!r} would drop inherited {sorted(missing)}'
+
+
+def test_csp_is_strict_outside_inline_content():
+    directives = csp_directives()
+    assert directives['default-src'] == "'self'"
+    for directive in ('object-src', 'base-uri', 'form-action', 'frame-ancestors'):
+        assert directives[directive] == "'none'", directive
+    assert directives['font-src'] == "'self'"
+    assert directives['img-src'] == "'self' data:"
+    assert "'unsafe-eval'" not in csp_value()
+
+
+def test_health_endpoint_and_referrer_policy():
+    assert re.search(r'Referrer-Policy\s+"no-referrer"', CONFIG)
+    assert re.search(r'location\s*=\s*/healthz\s*\{[^}]*return\s+200', CONFIG, re.S), 'no /healthz route'
+
+
+def test_csp_permits_what_the_pages_actually_use(page_artefacts):
+    """A policy that blocked the theme toggle or the inline listing styles would
+    be a silent breakage, so keep it honest against the real artefacts."""
+    directives = csp_directives()
+
+    for name, text in page_artefacts.items():
+        if '<script>' in text or 'onclick=' in text:
+            assert "'unsafe-inline'" in directives.get('script-src', ''), f'{name} uses inline script'
+        if '<style' in text:
+            assert "'unsafe-inline'" in directives.get('style-src', ''), f'{name} uses inline style'
+        external = re.findall(r'(?:src|href)="(?:https?:)?//', text)
+        assert not external, f'{name} loads {external}, which default-src blocks'
 
 
 def test_cleans_up_obsolete_and_version_leaking_headers():

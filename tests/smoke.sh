@@ -63,11 +63,19 @@ curl -sf "$BASE_URL/hand-written/" | grep -q 'mine' || fail 'a hand-written inde
 expect_code "$BASE_URL/hello.txt" 200
 expect_code "$BASE_URL/notes.txt.bak" 403
 
-headers=$(curl -sI "$BASE_URL/style.css")
-grep -q 'X-Frame-Options' <<<"$headers" || fail 'the security headers are missing on style.css'
-grep -q 'X-Content-Type-Options' <<<"$headers" || fail 'X-Content-Type-Options is missing on style.css'
-grep -qi '^Server: nginx[[:space:]]*$' <<<"$headers" || fail 'the nginx version is advertised'
-grep -qi 'immutable' <<<"$headers" && fail 'style.css is pinned in browsers for a year'
+curl -sf "$BASE_URL/healthz" | grep -q '^ok$' || fail '/healthz does not answer ok'
+
+headers=$(curl -sI "$BASE_URL/")
+asset_headers=$(curl -sI "$BASE_URL/style.css")
+for header in X-Frame-Options X-Content-Type-Options Referrer-Policy Permissions-Policy Content-Security-Policy; do
+    grep -q "^$header:" <<<"$headers" || fail "$header is missing on the listing"
+    grep -q "^$header:" <<<"$asset_headers" || fail "$header is missing on style.css (lost to add_header inheritance)"
+done
+grep -qi "^Referrer-Policy: no-referrer" <<<"$headers" || fail 'Referrer-Policy is not no-referrer'
+grep -qi "^Content-Security-Policy: default-src 'self'" <<<"$headers" || fail 'the CSP is not the documented one'
+grep -qi "frame-ancestors 'none'" <<<"$headers" || fail 'the CSP does not forbid framing'
+grep -qi 'immutable' <<<"$asset_headers" && fail 'style.css is pinned in browsers for a year'
+grep -qi '^Server: nginx[[:space:]]*$' <<<"$asset_headers" || fail 'the nginx version is advertised'
 
 printf 'x\n' > "$CONTENT/added-later.txt"
 for _ in $(seq 1 20); do
@@ -78,5 +86,13 @@ listing_has 'added-later.txt' || fail 'the watcher did not index a file added on
 
 owner=$(stat -c '%u' "$CONTENT/index.html")
 [ "$owner" = "$(id -u)" ] || fail "the generated index.html is owned by uid $owner, not $(id -u)"
+
+status=
+for _ in $(seq 1 25); do
+    status=$(docker inspect --format '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo none)
+    [ "$status" = healthy ] && break
+    sleep 2
+done
+[ "$status" = healthy ] || fail "the HEALTHCHECK never reported healthy (last: $status)"
 
 echo "smoke: ok (image $IMAGE on port $PORT)"
