@@ -73,39 +73,47 @@ read -r -d '' TEMPLATE <<'EOF' || true
 <link rel="stylesheet" href="/style.css">
 <script>
 // The theme is applied from the head, before anything is painted, so a dark
-// page never flashes light while the parser walks a long listing.
-function currentThemeIsDark() {
-  if (location.hash === '#dark') return true;
+// page never flashes light while the parser walks a long listing. The footer
+// button cycles light -> dark -> ember, the choice is remembered in
+// localStorage, and #dark or #ember can be linked directly.
+var THEMES = ['light', 'dark', 'ember'];
+
+function currentTheme() {
+  var index = THEMES.indexOf(location.hash.replace('#', ''));
+  if (index > -1) return THEMES[index];
   try {
-    return localStorage.getItem('theme') === 'dark';
-  } catch (e) {
-    return false;
-  }
+    var stored = localStorage.getItem('theme');
+    if (THEMES.indexOf(stored) > -1) return stored;
+  } catch (e) {}
+  return 'light';
 }
 
-function storeTheme(dark) {
+function storeTheme(name) {
   try {
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', name);
   } catch (e) {}
 }
 
 function applyTheme() {
-  document.documentElement.classList.toggle('dark', currentThemeIsDark());
+  var name = currentTheme();
+  for (var i = 0; i < THEMES.length; i++) {
+    document.documentElement.classList.toggle(THEMES[i], name === THEMES[i]);
+  }
 }
 
 function toggleTheme() {
-  var dark = !document.documentElement.classList.contains('dark');
-  storeTheme(dark);
-  location.hash = dark ? '#dark' : '';
+  var next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+  storeTheme(next);
+  location.hash = next === 'light' ? '' : '#' + next;
   applyTheme();
 }
 
 window.addEventListener('hashchange', function () {
-  storeTheme(currentThemeIsDark());
+  storeTheme(currentTheme());
   applyTheme();
 });
 
-storeTheme(currentThemeIsDark());
+storeTheme(currentTheme());
 applyTheme();
 </script>
 </head>

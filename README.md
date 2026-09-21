@@ -10,13 +10,13 @@ framework, no build step.
 
 ## Screenshots
 
-| Light | Dark |
-| --- | --- |
-| ![A directory listing in light mode](docs/listing-light.png) | ![The same listing in dark mode](docs/listing-dark.png) |
+| Light | Dark | Ember |
+| --- | --- | --- |
+| ![A directory listing in light mode](docs/listing-light.png) | ![The same listing in dark mode](docs/listing-dark.png) | ![The same listing in the ember theme](docs/listing-ember.png) |
 
-A content page, in the theme it remembered from the last visit:
+A content page in the ember theme, which it remembered from the last visit:
 
-![A post rendered in dark mode](docs/post-dark.png)
+![A post rendered in the ember theme](docs/post-ember.png)
 
 ## Quick start
 
@@ -84,9 +84,11 @@ Files need no scaffolding at all: copy them into `html/`.
 
 ## Theming
 
-The button in the footer toggles light and dark. The choice is kept in
-`localStorage`, so it survives navigation and comes back on the next visit, and an
-`#dark` link still forces dark for that page and stays shareable.
+The button in the footer cycles three themes: light, dark, and ember, which takes
+its colours from the terminal palette in `html/style.css` (`#171717` ground,
+`#CCD0CF` text, ember and sage accents). The choice is kept in `localStorage`, so it
+survives navigation and comes back on the next visit, and `#dark` or `#ember` links
+still force a theme for that page and stay shareable.
 
 ## Testing
 

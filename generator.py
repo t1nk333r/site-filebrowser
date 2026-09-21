@@ -145,6 +145,14 @@ html.dark a i {{ border-color: #666; }}
 html.dark .theme-toggle {{ border-color: #e0e0e0; }}
 html.dark .theme-toggle:hover {{ background: #333; }}
 
+/* Ember theme, from the terminal palette: #171717 ground, #CCD0CF text */
+html.ember body {{ background: #171717; color: #CCD0CF; }}
+html.ember ::selection {{ background: #757864; color: #171717; }}
+html.ember h1 {{ color: #F25623; }}
+html.ember a i {{ border-color: #F56E0F; }}
+html.ember .theme-toggle {{ border-color: #F56E0F; color: #CCD0CF; }}
+html.ember .theme-toggle:hover {{ background: #525252; }}
+
 @media (max-device-width: 600px) {{
   body {{ padding-top: 2em; justify-content: start }}
   footer {{ padding: 2em 0; flex-direction: column; gap: 1em; align-items: flex-start; }}
@@ -154,39 +162,47 @@ html.dark .theme-toggle:hover {{ background: #333; }}
 <title>{title_html}</title>
 <script>
 // The theme is applied from the head, before anything is painted, so a dark
-// page never flashes light while the parser walks a long listing.
-function currentThemeIsDark() {{
-  if (location.hash === '#dark') return true;
+// page never flashes light while the parser walks a long listing. The footer
+// button cycles light -> dark -> ember, the choice is remembered in
+// localStorage, and #dark or #ember can be linked directly.
+var THEMES = ['light', 'dark', 'ember'];
+
+function currentTheme() {{
+  var index = THEMES.indexOf(location.hash.replace('#', ''));
+  if (index > -1) return THEMES[index];
   try {{
-    return localStorage.getItem('theme') === 'dark';
-  }} catch (e) {{
-    return false;
-  }}
+    var stored = localStorage.getItem('theme');
+    if (THEMES.indexOf(stored) > -1) return stored;
+  }} catch (e) {{}}
+  return 'light';
 }}
 
-function storeTheme(dark) {{
+function storeTheme(name) {{
   try {{
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
+    localStorage.setItem('theme', name);
   }} catch (e) {{}}
 }}
 
 function applyTheme() {{
-  document.documentElement.classList.toggle('dark', currentThemeIsDark());
+  var name = currentTheme();
+  for (var i = 0; i < THEMES.length; i++) {{
+    document.documentElement.classList.toggle(THEMES[i], name === THEMES[i]);
+  }}
 }}
 
 function toggleTheme() {{
-  var dark = !document.documentElement.classList.contains('dark');
-  storeTheme(dark);
-  location.hash = dark ? '#dark' : '';
+  var next = THEMES[(THEMES.indexOf(currentTheme()) + 1) % THEMES.length];
+  storeTheme(next);
+  location.hash = next === 'light' ? '' : '#' + next;
   applyTheme();
 }}
 
 window.addEventListener('hashchange', function () {{
-  storeTheme(currentThemeIsDark());
+  storeTheme(currentTheme());
   applyTheme();
 }});
 
-storeTheme(currentThemeIsDark());
+storeTheme(currentTheme());
 applyTheme();
 </script>
 </head>

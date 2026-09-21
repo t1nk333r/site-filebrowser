@@ -219,6 +219,63 @@ html.dark table {
   color: #e0e0e0;
 }
 
+/* Ember theme, from the terminal palette: #171717 ground, #CCD0CF text */
+html.ember body {
+  background: #171717;
+  color: #CCD0CF;
+}
+
+html.ember ::selection {
+  background: #757864;
+  color: #171717;
+}
+
+html.ember h1,
+html.ember h2 {
+  color: #F25623;
+}
+
+html.ember a i {
+  border-color: #F56E0F;
+}
+
+html.ember .highlight {
+  background: #757864;
+  color: #171717;
+}
+
+html.ember pre {
+  background: #171717;
+  border-color: #525252;
+}
+
+html.ember pre ::selection {
+  background: #757864;
+  color: #171717;
+}
+
+html.ember code {
+  background: #525252;
+  color: #CCD0CF;
+}
+
+html.ember blockquote {
+  border-left-color: #88A57D;
+}
+
+html.ember .theme-toggle {
+  border-color: #F56E0F;
+  color: #CCD0CF;
+}
+
+html.ember .theme-toggle:hover {
+  background: #525252;
+}
+
+html.ember table {
+  color: #CCD0CF;
+}
+
 /* Mobile Responsive */
 @media (max-device-width: 600px) {
   body {

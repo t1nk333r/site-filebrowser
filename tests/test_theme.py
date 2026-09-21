@@ -1,6 +1,7 @@
 """The theme script lives in every page-producing artefact, so these tests both
 keep the copies identical and pin the behaviour a visitor sees."""
 import os
+import re
 
 import pytest
 
@@ -26,20 +27,37 @@ def test_script_runs_from_the_head_and_scopes_dark_to_the_root(page_artefacts):
         assert text.index('<script>') < text.index('</head>'), f'{name}: script is not in the head'
 
 
-def test_dark_rules_target_the_root_element(tmp_path):
+def theme_rules(text):
+    """Theme selector -> declarations, normalised, multi-selectors split."""
+    rules = {}
+    for match in re.finditer(r'(html\.(?:dark|ember)[^{}]*)\{([^{}]*)\}', text):
+        declarations = ' '.join(match.group(2).split())
+        for selector in match.group(1).split(','):
+            rules[' '.join(selector.split())] = declarations
+    return rules
+
+
+def test_theme_rules_target_the_root_element(tmp_path):
     root = tmp_path / 'html'
     root.mkdir()
     (root / 'page.txt').write_text('x')
     generate(root)
-
-    for path in (REPO / 'html' / 'style.css', root / 'index.html'):
-        text = path.read_text(encoding='utf-8')
-        assert 'body.dark' not in text, f'{path} still scopes dark to body'
-
-    assert 'html.dark body' in (root / 'index.html').read_text(encoding='utf-8')
+    generated = (root / 'index.html').read_text(encoding='utf-8')
     style = (REPO / 'html' / 'style.css').read_text(encoding='utf-8')
-    for selector in ('html.dark body', 'html.dark pre', 'html.dark code', 'html.dark blockquote', 'html.dark table'):
-        assert selector in style, selector
+
+    for name, text in (('html/style.css', style), ('generated listing', generated)):
+        assert 'body.dark' not in text and 'body.ember' not in text, name
+        assert 'html.dark body' in text and 'html.ember body' in text, name
+
+    # the listing carries a subset of the stylesheet and never contradicts it
+    style_rules = theme_rules(style)
+    for selector, declarations in theme_rules(generated).items():
+        assert selector in style_rules, f'{selector} is styled in a listing but not in style.css'
+        assert style_rules[selector] == declarations, f'{selector} differs between the copies'
+
+    # the ember palette also reaches what a listing never uses
+    for selector in ('html.ember h2', 'html.ember blockquote', 'html.ember code', 'html.ember pre'):
+        assert selector in style_rules, selector
 
 
 def _playwright():
@@ -64,9 +82,17 @@ def page():
         browser.close()
 
 
+THEME_BACKGROUNDS = {
+    'light': 'rgb(242, 242, 242)',
+    'dark': 'rgb(26, 26, 26)',
+    'ember': 'rgb(23, 23, 23)',
+}
+
+
 def state(tab):
     return tab.evaluate("""() => ({
-        dark: document.documentElement.classList.contains('dark'),
+        theme: ['light', 'dark', 'ember'].filter(t => document.documentElement.classList.contains(t))[0] || 'none',
+        classes: document.documentElement.className,
         background: getComputedStyle(document.body).backgroundColor,
         hash: location.hash,
         stored: (() => { try { return localStorage.getItem('theme'); } catch (e) { return 'n/a'; } })(),
@@ -79,43 +105,48 @@ def toggle(tab):
 
 
 @pytest.mark.browser
-def test_toggle_switches_both_ways(site, page):
+def test_toggle_cycles_light_dark_ember(site, page):
     page.goto(f'{site}/template.html')
-    assert state(page)['dark'] is False
+    assert state(page)['theme'] == 'light'
 
-    toggle(page)
-    dark = state(page)
-    assert dark['dark'] is True and dark['background'] == 'rgb(26, 26, 26)'
-    assert dark['hash'] == '#dark' and dark['stored'] == 'dark'
-
-    toggle(page)
-    light = state(page)
-    assert light['dark'] is False and light['background'] == 'rgb(242, 242, 242)'
-    assert light['stored'] == 'light'
+    for expected in ('dark', 'ember', 'light'):
+        toggle(page)
+        current = state(page)
+        assert current['theme'] == expected, current
+        assert current['background'] == THEME_BACKGROUNDS[expected], current
+        assert current['classes'] == expected, f'only one theme class at a time: {current}'
+        assert current['stored'] == expected, current
+        expected_hash = '' if expected == 'light' else f'#{expected}'
+        assert current['hash'] == expected_hash, current
 
 
 @pytest.mark.browser
-def test_theme_survives_navigation_and_can_be_toggled_from_storage(site, page):
+def test_theme_survives_navigation_and_toggles_from_storage(site, page):
     page.goto(f'{site}/')
-    toggle(page)
-    assert state(page)['dark'] is True
+    toggle(page)                      # dark
+    toggle(page)                      # ember
+    assert state(page)['theme'] == 'ember'
 
     page.click('a[href="sub/"]')
     page.wait_for_url(f'{site}/sub/')
     arrived = state(page)
-    assert arrived['dark'] is True and arrived['hash'] == ''
+    assert arrived['theme'] == 'ember' and arrived['hash'] == ''
+    assert arrived['background'] == THEME_BACKGROUNDS['ember']
 
-    # the theme came from storage, not the hash: the toggle must still flip it
+    # the theme came from storage, not the hash: the button must still advance it
     toggle(page)
-    assert state(page)['dark'] is False
+    assert state(page)['theme'] == 'light'
     assert state(page)['stored'] == 'light'
 
 
 @pytest.mark.browser
-def test_dark_deep_link_wins_and_is_applied_on_load(site, page):
-    page.goto(f'{site}/sub/#dark', wait_until='domcontentloaded')
-    assert state(page)['dark'] is True
+@pytest.mark.parametrize('name', ['dark', 'ember'])
+def test_deep_links_apply_on_load_and_advance_from_there(site, page, name):
+    page.goto(f'{site}/sub/#{name}', wait_until='domcontentloaded')
+    loaded = state(page)
+    assert loaded['theme'] == name, loaded
+    assert loaded['background'] == THEME_BACKGROUNDS[name], loaded
+    assert loaded['classes'] == name, loaded
 
     toggle(page)
-    cleared = state(page)
-    assert cleared['dark'] is False and cleared['hash'] == '' and cleared['stored'] == 'light'
+    assert state(page)['theme'] == ('light' if name == 'ember' else 'ember')
