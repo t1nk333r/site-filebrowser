@@ -178,10 +178,17 @@ body.dark .theme-toggle:hover {{ background: #333; }}
 <button class="theme-toggle" onclick="toggleTheme()">◐</button>
 </footer>
 <script>
+function applyTheme() {
+  document.body.classList.toggle('dark', location.hash === '#dark');
+}
+
 function toggleTheme() {
   location.hash = location.hash === '#dark' ? '' : '#dark';
+  applyTheme();
 }
-if (location.hash === '#dark') document.body.classList.add('dark');
+
+window.addEventListener('hashchange', applyTheme);
+applyTheme();
 </script>
 </body>
 </html>"""
