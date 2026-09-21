@@ -171,51 +171,51 @@ tr td:last-child {
 }
 
 /* Dark Theme */
-body.dark {
+html.dark body {
   background: #1a1a1a;
   color: #e0e0e0;
 }
 
-body.dark ::selection {
+html.dark ::selection {
   background: #333;
   color: #fff;
 }
 
-body.dark a i {
+html.dark a i {
   border-color: #666;
 }
 
-body.dark .highlight {
+html.dark .highlight {
   background: #333;
 }
 
-body.dark pre {
+html.dark pre {
   background: #2a2a2a;
   border-color: #444;
 }
 
-body.dark pre ::selection {
+html.dark pre ::selection {
   background: #555;
   color: #f2f2f2;
 }
 
-body.dark code {
+html.dark code {
   background: #2a2a2a;
 }
 
-body.dark blockquote {
+html.dark blockquote {
   border-left-color: #444;
 }
 
-body.dark .theme-toggle {
+html.dark .theme-toggle {
   border-color: #e0e0e0;
 }
 
-body.dark .theme-toggle:hover {
+html.dark .theme-toggle:hover {
   background: #333;
 }
 
-body.dark table {
+html.dark table {
   color: #e0e0e0;
 }
 

@@ -14,6 +14,43 @@ TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TITLE_PLACEHOLDER</title>
 <link rel="stylesheet" href="/style.css">
+<script>
+// The theme is applied from the head, before anything is painted, so a dark
+// page never flashes light while the parser walks a long listing.
+function currentThemeIsDark() {
+  if (location.hash === '#dark') return true;
+  try {
+    return localStorage.getItem('theme') === 'dark';
+  } catch (e) {
+    return false;
+  }
+}
+
+function storeTheme(dark) {
+  try {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  } catch (e) {}
+}
+
+function applyTheme() {
+  document.documentElement.classList.toggle('dark', currentThemeIsDark());
+}
+
+function toggleTheme() {
+  var dark = !document.documentElement.classList.contains('dark');
+  storeTheme(dark);
+  location.hash = dark ? '#dark' : '';
+  applyTheme();
+}
+
+window.addEventListener('hashchange', function () {
+  storeTheme(currentThemeIsDark());
+  applyTheme();
+});
+
+storeTheme(currentThemeIsDark());
+applyTheme();
+</script>
 </head>
 <body>
 <main>
@@ -29,19 +66,6 @@ TEMPLATE = """<!DOCTYPE html>
 <p><a href="../"><i>../</i></a></p>
 <button class="theme-toggle" onclick="toggleTheme()">◐</button>
 </footer>
-<script>
-function applyTheme() {
-  document.body.classList.toggle('dark', location.hash === '#dark');
-}
-
-function toggleTheme() {
-  location.hash = location.hash === '#dark' ? '' : '#dark';
-  applyTheme();
-}
-
-window.addEventListener('hashchange', applyTheme);
-applyTheme();
-</script>
 </body>
 </html>
 """

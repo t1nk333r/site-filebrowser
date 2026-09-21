@@ -10,7 +10,7 @@ A beautiful, minimalist file browser with automatic directory indexing and dark/
 ## ✨ Features
 
 - 🎨 **Minimal Aesthetic** - Clean, monospace design inspired by classic directory listings
-- 🌓 **Dark/Light Themes** - Toggle between themes with persistent preference (URL hash)
+- 🌓 **Dark/Light Themes** - Toggle between themes, remembered across pages (URL hash + `localStorage`)
 - 🔄 **Auto-Regeneration** - Automatically detects file changes and updates indexes
 - 📁 **Recursive Indexing** - Generates beautiful listings for all directories
 - 📊 **File Metadata** - Displays file sizes and modification dates
@@ -163,6 +163,43 @@ This is the **fastest way** to create new pages!
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Your Title</title>
 <link rel="stylesheet" href="/style.css">
+<script>
+// The theme is applied from the head, before anything is painted, so a dark
+// page never flashes light while the parser walks a long listing.
+function currentThemeIsDark() {
+  if (location.hash === '#dark') return true;
+  try {
+    return localStorage.getItem('theme') === 'dark';
+  } catch (e) {
+    return false;
+  }
+}
+
+function storeTheme(dark) {
+  try {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  } catch (e) {}
+}
+
+function applyTheme() {
+  document.documentElement.classList.toggle('dark', currentThemeIsDark());
+}
+
+function toggleTheme() {
+  var dark = !document.documentElement.classList.contains('dark');
+  storeTheme(dark);
+  location.hash = dark ? '#dark' : '';
+  applyTheme();
+}
+
+window.addEventListener('hashchange', function () {
+  storeTheme(currentThemeIsDark());
+  applyTheme();
+});
+
+storeTheme(currentThemeIsDark());
+applyTheme();
+</script>
 </head>
 <body>
 <main>
@@ -177,19 +214,6 @@ This is the **fastest way** to create new pages!
 <p><a href="../"><i>../</i></a></p>
 <button class="theme-toggle" onclick="toggleTheme()">◐</button>
 </footer>
-<script>
-function applyTheme() {
-  document.body.classList.toggle('dark', location.hash === '#dark');
-}
-
-function toggleTheme() {
-  location.hash = location.hash === '#dark' ? '' : '#dark';
-  applyTheme();
-}
-
-window.addEventListener('hashchange', applyTheme);
-applyTheme();
-</script>
 </body>
 </html>
 ```
@@ -202,7 +226,11 @@ Click the **◐** button in the footer to switch between light and dark themes.
 
 ### Theme Persistence
 
-The theme preference is stored in the URL hash:
+Your last choice is remembered in `localStorage`, so the theme survives
+navigation and comes back on your next visit. An explicit `#dark` link still
+wins for that page load, and the hash stays in the URL so dark pages remain
+shareable:
+
 - Light mode: `http://localhost:8800/`
 - Dark mode: `http://localhost:8800/#dark`
 
@@ -395,6 +423,43 @@ snippet minpage "Minimal page template"
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${1:Page Title}</title>
 <link rel="stylesheet" href="/style.css">
+<script>
+// The theme is applied from the head, before anything is painted, so a dark
+// page never flashes light while the parser walks a long listing.
+function currentThemeIsDark() {
+  if (location.hash === '#dark') return true;
+  try {
+    return localStorage.getItem('theme') === 'dark';
+  } catch (e) {
+    return false;
+  }
+}
+
+function storeTheme(dark) {
+  try {
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  } catch (e) {}
+}
+
+function applyTheme() {
+  document.documentElement.classList.toggle('dark', currentThemeIsDark());
+}
+
+function toggleTheme() {
+  var dark = !document.documentElement.classList.contains('dark');
+  storeTheme(dark);
+  location.hash = dark ? '#dark' : '';
+  applyTheme();
+}
+
+window.addEventListener('hashchange', function () {
+  storeTheme(currentThemeIsDark());
+  applyTheme();
+});
+
+storeTheme(currentThemeIsDark());
+applyTheme();
+</script>
 </head>
 <body>
 <main>
@@ -410,19 +475,6 @@ snippet minpage "Minimal page template"
 <p><a href="../"><i>../</i></a></p>
 <button class="theme-toggle" onclick="toggleTheme()">◐</button>
 </footer>
-<script>
-function applyTheme() {
-  document.body.classList.toggle('dark', location.hash === '#dark');
-}
-
-function toggleTheme() {
-  location.hash = location.hash === '#dark' ? '' : '#dark';
-  applyTheme();
-}
-
-window.addEventListener('hashchange', applyTheme);
-applyTheme();
-</script>
 </body>
 </html>
 $0
@@ -455,7 +507,45 @@ return {
     t({"<!DOCTYPE html>", "<html lang=\"en\">", "<head>", "<meta charset=\"utf-8\">", 
        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">", "<title>"}),
     i(1, "Page Title"),
-    t({"</title>", "<link rel=\"stylesheet\" href=\"/style.css\">", "</head>", "<body>", "<main>", "<h1>"}),
+    t({"</title>", "<link rel=\"stylesheet\" href=\"/style.css\">",
+       "<script>",
+       "// The theme is applied from the head, before anything is painted, so a dark",
+       "// page never flashes light while the parser walks a long listing.",
+       "function currentThemeIsDark() {",
+       "  if (location.hash === '#dark') return true;",
+       "  try {",
+       "    return localStorage.getItem('theme') === 'dark';",
+       "  } catch (e) {",
+       "    return false;",
+       "  }",
+       "}",
+       "",
+       "function storeTheme(dark) {",
+       "  try {",
+       "    localStorage.setItem('theme', dark ? 'dark' : 'light');",
+       "  } catch (e) {}",
+       "}",
+       "",
+       "function applyTheme() {",
+       "  document.documentElement.classList.toggle('dark', currentThemeIsDark());",
+       "}",
+       "",
+       "function toggleTheme() {",
+       "  var dark = !document.documentElement.classList.contains('dark');",
+       "  storeTheme(dark);",
+       "  location.hash = dark ? '#dark' : '';",
+       "  applyTheme();",
+       "}",
+       "",
+       "window.addEventListener('hashchange', function () {",
+       "  storeTheme(currentThemeIsDark());",
+       "  applyTheme();",
+       "});",
+       "",
+       "storeTheme(currentThemeIsDark());",
+       "applyTheme();",
+       "</script>",
+       "</head>", "<body>", "<main>", "<h1>"}),
     f(function(args) return args[1][1] end, {1}),
     t({"</h1>", "<p>-</p>", "", "<p>"}),
     i(2, "Content here..."),
@@ -463,11 +553,7 @@ return {
     f(function() return os.date("%Y-%m-%d") end),
     t({"</time>", "", "</main>", "<footer>", "<p><a href=\"../\"><i>../</i></a></p>",
        "<button class=\"theme-toggle\" onclick=\"toggleTheme()\">◐</button>", "</footer>",
-       "<script>", "function applyTheme() {", "  document.body.classList.toggle('dark', location.hash === '#dark');",
-       "}", "", "function toggleTheme() {", "  location.hash = location.hash === '#dark' ? '' : '#dark';",
-       "  applyTheme();", "}", "",
-       "window.addEventListener('hashchange', applyTheme);", "applyTheme();",
-       "</script>", "</body>", "</html>"}),
+       "</body>", "</html>"}),
     i(0)
   })
 }
