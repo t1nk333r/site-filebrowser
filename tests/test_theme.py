@@ -9,7 +9,11 @@ from conftest import (REPO, canonical_script, generate, normalise_script,
 
 
 def artefacts(tmp_path):
-    """Every artefact that carries the theme script."""
+    """Every artefact that carries the theme script.
+
+    The README deliberately points at html/template.html instead of inlining the
+    script, so it is not part of the parity set.
+    """
     root = tmp_path / 'html'
     root.mkdir()
     (root / 'page.txt').write_text('x')
@@ -23,7 +27,6 @@ def artefacts(tmp_path):
         'new-page.sh': (sh_root / 'html/page.html').read_text(encoding='utf-8'),
         'new-page.py': (py_root / 'html/page.html').read_text(encoding='utf-8'),
         'html.json': snippet_page(REPO / 'html.json'),
-        'README.md': (REPO / 'README.md').read_text(encoding='utf-8'),
     }
 
 
@@ -43,8 +46,6 @@ def test_script_runs_from_the_head_and_scopes_dark_to_the_root(tmp_path):
     assert 'localStorage' in canonical
 
     for name, text in artefacts(tmp_path).items():
-        if name.endswith('.md'):
-            continue
         assert text.index('<script>') < text.index('</head>'), f'{name}: script is not in the head'
 
 
